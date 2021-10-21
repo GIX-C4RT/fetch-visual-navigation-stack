@@ -6,11 +6,17 @@ import tf
 from tf.transformations import *
 import tf2_ros
 import tf2_geometry_msgs
+import numpy as np
 
 init_pose = None
 def reinit_pose(msg):
     global init_pose
+    global Tpo
     init_pose = msg.pose.pose
+    Tpo = tf_buffer.lookup_transform("camera_pose_frame",
+                                       "camera_odom_frame", #source frame
+                                       rospy.Time(0),
+                                       rospy.Duration(5.0))
 
 rospy.init_node('camera_odom_bind', anonymous=True)
 r = rospy.Rate(25)
@@ -26,37 +32,27 @@ transform = tf_buffer.lookup_transform("odom",
                                        rospy.Duration(5.0)) #get the tf at first available time
 
 listener = tf.TransformListener()
+tm = translation_matrix([transform.transform.translation.x, transform.transform.translation.y, transform.transform.translation.z])
+qm = quaternion_matrix([transform.transform.rotation.x, transform.transform.rotation.y, transform.transform.rotation.z, transform.transform.rotation.w])
+global_trans_matrix = concatenate_matrices(tm, qm)
 
-print transform.transform.translation.x, transform.transform.translation.y, transform.transform.translation.z
+Tpo = None
 while not rospy.is_shutdown():
-    # br.sendTransform((msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z),
-    #                 (msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w),
-    #                 rospy.Time.now(),
-    #                 "camera_odom_frame",
-    #                 "odom")
     if init_pose:
-        try:
-            (trans2,rot2) = listener.lookupTransform('/camera_odom_frame', '/camera_pose_frame', rospy.Time(0))
-            global_trans = [init_pose.position.x - trans2[0], init_pose.position.y - trans2[1], 0]
-            print "init: ", init_pose.position.x, init_pose.position.y
-            print "op: ", trans2[0], trans2[1]
-            print "global: ", global_trans
-            br.sendTransform(tuple(global_trans),
-                        (init_pose.orientation.x,init_pose.orientation.y,init_pose.orientation.z,init_pose.orientation.w), 
+        tm = translation_matrix([init_pose.position.x, init_pose.position.y, init_pose.position.z])
+        qm = quaternion_matrix([init_pose.orientation.x, init_pose.orientation.y, init_pose.orientation.z, init_pose.orientation.w])
+        transform1 = concatenate_matrices(tm, qm)
+
+        tm = translation_matrix([Tpo.transform.translation.x, Tpo.transform.translation.y, Tpo.transform.translation.z])
+        qm = quaternion_matrix([Tpo.transform.rotation.x, Tpo.transform.rotation.y, Tpo.transform.rotation.z, Tpo.transform.rotation.w])
+        transform2 = concatenate_matrices(tm, qm)
+        global_trans_matrix = np.matmul(transform1, transform2)
+
+    global_trans_quaternion = quaternion_from_matrix(global_trans_matrix)
+    global_trans_translation = translation_from_matrix(global_trans_matrix)
+    br.sendTransform(global_trans_translation,
+                        global_trans_quaternion, 
                         rospy.Time.now(), 
                         "camera_odom_frame", 
                         "map")
-        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-            continue
-    else:
-        br.sendTransform((transform.transform.translation.x, transform.transform.translation.y, transform.transform.translation.z),
-                            (transform.transform.rotation.x, transform.transform.rotation.y, transform.transform.rotation.z, transform.transform.rotation.w), 
-                            rospy.Time.now(), 
-                            "camera_odom_frame", 
-                            "map")
-        # br.sendTransform((transform.transform.translation.x, transform.transform.translation.y, transform.transform.translation.z),
-        #                     (0, 0, 0, 1), 
-        #                     rospy.Time.now(), 
-        #                     "camera_odom_frame", 
-        #                     "map")
     r.sleep()
