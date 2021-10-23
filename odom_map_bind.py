@@ -41,7 +41,7 @@ while not rospy.is_shutdown():
         global_trans_translation = translation_from_matrix(global_trans_matrix)
         br.sendTransform(global_trans_translation,
                     global_trans_quaternion,
-                    rospy.Time.now(),
+                    rospy.Time.now() + rospy.Duration(1.0),
                     "odom",
                     "map")
     except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
