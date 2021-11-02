@@ -1,0 +1,10 @@
+<launch>
+  <node name="fetch_visual_navigation_rviz" pkg="rviz" type="rviz" args="-d /home/dewey/fetch_visual_navigation/src/fetch_visual_navigation/src/config/final.rviz"/>
+  <node name="camera_odom_map_bind" pkg="fetch_visual_navigation" type="camera_odom_map_bind"/>
+  <node name="odom_map_bind" pkg="fetch_visual_navigation" type="odom_map_bind"/>
+
+  <!-- Start fetch navigation stack -->
+  <include file="$(find fetch_navigation)/launch/fetch_nav.launch">
+    <arg name="map_file" default="/home/dewey/fetch_visual_navigation/src/fetch_visual_navigation/src/map/mkspc_edited.yaml" />
+  </include>
+</launch>
