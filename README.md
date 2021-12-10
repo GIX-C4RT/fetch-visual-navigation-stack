@@ -1,7 +1,7 @@
 # fetch-visual-navigation-stack
 This package handles the realsense t265 based visual slam navigation stack
 
-#Setup
+# Setup  
 build the package as a standard ROS package via 
 ```
 catkin_make
